@@ -59,6 +59,7 @@ dmypy.json
 .env
 .env.local
 .env.*.local
+# Note: .env.example IS committed (it's a template with no secrets)
 
 # FastAPI/Uvicorn
 *.log

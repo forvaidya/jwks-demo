@@ -13,7 +13,11 @@ Usage:
 import os
 import sys
 import json
+from dotenv import load_dotenv
 from aws_sts import get_aws_credentials
+
+# Load .env file
+load_dotenv()
 
 def main():
     """Get credentials and output as shell exports."""

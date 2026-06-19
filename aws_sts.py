@@ -6,6 +6,10 @@ import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 import sys
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
 
 
 def load_private_key_from_file(key_path: str) -> str:
