@@ -42,15 +42,17 @@ def create_oidc_jwt(
     Returns:
         Signed JWT token
     """
-    now = datetime.utcnow()
-    exp = now + timedelta(hours=1)
+    import time
+
+    now_ts = int(time.time())
+    exp_ts = now_ts + 3600  # 1 hour
 
     payload = {
         "iss": issuer,
         "sub": user_id,
         "aud": "sts.amazonaws.com",
-        "iat": int(now.timestamp()),
-        "exp": int(exp.timestamp()),
+        "iat": now_ts,
+        "exp": exp_ts,
     }
 
     token = jwt.encode(payload, private_key_pem, algorithm="RS256", headers={"kid": kid})
