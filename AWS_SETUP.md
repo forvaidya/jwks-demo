@@ -94,12 +94,12 @@ Terminal 2 (Argo Tunnel):
 cloudflared tunnel run --url http://localhost:3000
 ```
 
-Copy the tunnel URL: `https://YOUR-RANDOM-DOMAIN.trycloudflare.com`
+Copy the tunnel URL: `https://oidc.awanipro.com`
 
 ### 2. Update AWS OIDC Provider
 
 ```bash
-TUNNEL_URL="https://YOUR-RANDOM-DOMAIN.trycloudflare.com"
+TUNNEL_URL="https://oidc.awanipro.com"
 
 aws iam create-open-id-connect-provider \
   --url $TUNNEL_URL \
@@ -118,12 +118,12 @@ Note: AWS will validate the thumbprint when you use the provider.
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::123456789012:oidc-provider/YOUR-RANDOM-DOMAIN.trycloudflare.com"
+        "Federated": "arn:aws:iam::123456789012:oidc-provider/oidc.awanipro.com"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "YOUR-RANDOM-DOMAIN.trycloudflare.com:aud": "sts.amazonaws.com"
+          "oidc.awanipro.com:aud": "sts.amazonaws.com"
         }
       }
     }
@@ -144,7 +144,7 @@ import os
 from aws_sts import get_aws_credentials, set_aws_env_from_credentials
 
 creds = get_aws_credentials(
-    issuer='https://YOUR-RANDOM-DOMAIN.trycloudflare.com'
+    issuer='https://oidc.awanipro.com'
 )
 set_aws_env_from_credentials(creds)
 print('✅ Credentials obtained via Argo Tunnel!')

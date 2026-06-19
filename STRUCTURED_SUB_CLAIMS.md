@@ -305,7 +305,7 @@ AWS validates:
 
 | Component | GitHub OIDC | Your Local OIDC |
 |-----------|-------------|-----------------|
-| Issuer | `https://token.actions.githubusercontent.com` | `http://localhost:3000` |
+| Issuer | `https://oidc.awanipro.com` | `http://localhost:3000` |
 | Sub Format | `repo:owner/repo:ref:refs/heads/branch` | Same! Or custom format |
 | Audience | `123456789012` (account ID) | `sts.amazonaws.com` |
 | Trust Policy | AWS IAM | AWS IAM |

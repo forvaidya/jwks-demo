@@ -177,13 +177,13 @@ When using **Argo Tunnel** with custom `magic:` prefix sub claims:
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::123456789012:oidc-provider/mytunnel-abc123.trycloudflare.com"
+        "Federated": "arn:aws:iam::123456789012:oidc-provider/oidc.awanipro.com"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "mytunnel-abc123.trycloudflare.com:aud": "sts.amazonaws.com",
-          "mytunnel-abc123.trycloudflare.com:sub": "magic:mahesh"
+          "oidc.awanipro.com:aud": "sts.amazonaws.com",
+          "oidc.awanipro.com:sub": "magic:mahesh"
         }
       }
     }
@@ -197,10 +197,10 @@ Or accept multiple magic users with wildcard:
 {
   "Condition": {
     "StringEquals": {
-      "mytunnel-abc123.trycloudflare.com:aud": "sts.amazonaws.com"
+      "oidc.awanipro.com:aud": "sts.amazonaws.com"
     },
     "StringLike": {
-      "mytunnel-abc123.trycloudflare.com:sub": "magic:*"
+      "oidc.awanipro.com:sub": "magic:*"
     }
   }
 }
@@ -212,14 +212,14 @@ Or accept multiple magic users with wildcard:
 {
   "Condition": {
     "StringEquals": {
-      "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-      "token.actions.githubusercontent.com:sub": "repo:forvaidya/super-simple:ref:refs/heads/main"
+      "oidc.awanipro.com:aud": "sts.amazonaws.com",
+      "oidc.awanipro.com:sub": "repo:forvaidya/super-simple:ref:refs/heads/main"
     }
   }
 }
 ```
 
-Replace `mytunnel-abc123.trycloudflare.com` with your actual Argo Tunnel domain.
+Replace `oidc.awanipro.com` with your actual Argo Tunnel domain.
 
 ### Step 3: Attach Permissions
 
@@ -263,18 +263,18 @@ Output will show:
 ```
 2024-06-19T10:00:00Z INF +----------------------------+
 2024-06-19T10:00:00Z INF |   Your quick Tunnel has been created!  Visit it:   |
-2024-06-19T10:00:00Z INF |   https://YOUR-RANDOM-DOMAIN.trycloudflare.com   |
+2024-06-19T10:00:00Z INF |   https://oidc.awanipro.com   |
 2024-06-19T10:00:00Z INF +----------------------------+
 ```
 
 ### 3. Test the tunnel
 ```bash
-curl https://YOUR-RANDOM-DOMAIN.trycloudflare.com/.well-known/jwks.json
+curl https://oidc.awanipro.com/.well-known/jwks.json
 ```
 
 ### 4. Update AWS OIDC Provider
 - Use the Argo Tunnel URL instead of `localhost:3000`
-- Update provider URL to: `https://YOUR-RANDOM-DOMAIN.trycloudflare.com`
+- Update provider URL to: `https://oidc.awanipro.com`
 - Regenerate thumbprint
 
 ### 5. Update Environment Variables

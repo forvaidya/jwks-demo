@@ -9,13 +9,13 @@ Quick reference for setting up your custom OIDC with Argo Tunnel using `magic:` 
 {
   "Effect": "Allow",
   "Principal": {
-    "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+    "Federated": "arn:aws:iam::123456789012:oidc-provider/oidc.awanipro.com"
   },
   "Action": "sts:AssumeRoleWithWebIdentity",
   "Condition": {
     "StringEquals": {
-      "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-      "token.actions.githubusercontent.com:sub": "repo:forvaidya/super-simple:ref:refs/heads/main"
+      "oidc.awanipro.com:aud": "sts.amazonaws.com",
+      "oidc.awanipro.com:sub": "repo:forvaidya/super-simple:ref:refs/heads/main"
     }
   }
 }
@@ -26,13 +26,13 @@ Quick reference for setting up your custom OIDC with Argo Tunnel using `magic:` 
 {
   "Effect": "Allow",
   "Principal": {
-    "Federated": "arn:aws:iam::123456789012:oidc-provider/mytunnel-abc123.trycloudflare.com"
+    "Federated": "arn:aws:iam::123456789012:oidc-provider/oidc.awanipro.com"
   },
   "Action": "sts:AssumeRoleWithWebIdentity",
   "Condition": {
     "StringEquals": {
-      "mytunnel-abc123.trycloudflare.com:aud": "sts.amazonaws.com",
-      "mytunnel-abc123.trycloudflare.com:sub": "magic:mahesh"
+      "oidc.awanipro.com:aud": "sts.amazonaws.com",
+      "oidc.awanipro.com:sub": "magic:mahesh"
     }
   }
 }
@@ -50,13 +50,13 @@ python3 main.py
 ### 2. Start Argo Tunnel
 ```bash
 cloudflared tunnel run --url http://localhost:3000
-# https://mytunnel-abc123.trycloudflare.com
+# https://oidc.awanipro.com
 ```
 
 ### 3. Create AWS OIDC Provider
 ```bash
 aws iam create-open-id-connect-provider \
-  --url https://mytunnel-abc123.trycloudflare.com \
+  --url https://oidc.awanipro.com \
   --client-id-list sts.amazonaws.com \
   --thumbprint-list "0000000000000000000000000000000000000000"
 ```
@@ -72,13 +72,13 @@ cat > trust-policy.json << 'EOF'
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::123456789012:oidc-provider/mytunnel-abc123.trycloudflare.com"
+        "Federated": "arn:aws:iam::123456789012:oidc-provider/oidc.awanipro.com"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "mytunnel-abc123.trycloudflare.com:aud": "sts.amazonaws.com",
-          "mytunnel-abc123.trycloudflare.com:sub": "magic:mahesh"
+          "oidc.awanipro.com:aud": "sts.amazonaws.com",
+          "oidc.awanipro.com:sub": "magic:mahesh"
         }
       }
     }
@@ -100,15 +100,15 @@ cat > trust-policy.json << 'EOF'
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::123456789012:oidc-provider/mytunnel-abc123.trycloudflare.com"
+        "Federated": "arn:aws:iam::123456789012:oidc-provider/oidc.awanipro.com"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "mytunnel-abc123.trycloudflare.com:aud": "sts.amazonaws.com"
+          "oidc.awanipro.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "mytunnel-abc123.trycloudflare.com:sub": "magic:*"
+          "oidc.awanipro.com:sub": "magic:*"
         }
       }
     }
@@ -129,27 +129,27 @@ export MAHESH_AWS_ROLE="123456789012:role/MyMagicRole"
 # Test magic:mahesh
 python3 aws_sts.py \
   --user-id "magic:mahesh" \
-  --issuer "https://mytunnel-abc123.trycloudflare.com"
+  --issuer "https://oidc.awanipro.com"
 
 # Test magic:john
 python3 aws_sts.py \
   --user-id "magic:john" \
-  --issuer "https://mytunnel-abc123.trycloudflare.com"
+  --issuer "https://oidc.awanipro.com"
 
 # Test magic:alice
 python3 aws_sts.py \
   --user-id "magic:alice" \
-  --issuer "https://mytunnel-abc123.trycloudflare.com"
+  --issuer "https://oidc.awanipro.com"
 ```
 
 ## Format Reference
 
 | Component | GitHub | Your Magic OIDC |
 |-----------|--------|-----------------|
-| **Issuer** | `token.actions.githubusercontent.com` | `mytunnel-abc123.trycloudflare.com` |
-| **OIDC Provider ARN** | `arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com` | `arn:aws:iam::123456789012:oidc-provider/mytunnel-abc123.trycloudflare.com` |
-| **Audience Claim** | `token.actions.githubusercontent.com:aud` | `mytunnel-abc123.trycloudflare.com:aud` |
-| **Subject Claim** | `token.actions.githubusercontent.com:sub` | `mytunnel-abc123.trycloudflare.com:sub` |
+| **Issuer** | `oidc.awanipro.com` | `oidc.awanipro.com` |
+| **OIDC Provider ARN** | `arn:aws:iam::123456789012:oidc-provider/oidc.awanipro.com` | `arn:aws:iam::123456789012:oidc-provider/oidc.awanipro.com` |
+| **Audience Claim** | `oidc.awanipro.com:aud` | `oidc.awanipro.com:aud` |
+| **Subject Claim** | `oidc.awanipro.com:sub` | `oidc.awanipro.com:sub` |
 | **Subject Value** | `repo:forvaidya/super-simple:ref:refs/heads/main` | `magic:mahesh` |
 | **Subject Pattern** | `repo:forvaidya/*` | `magic:*` |
 
@@ -166,7 +166,7 @@ python3 aws_sts.py \
 |--------|--------|----------|
 | **Hosted By** | GitHub (official) | You (Argo Tunnel) |
 | **Subject Format** | Structured (repo semantics) | Custom (magic: prefix) |
-| **Issuer Domain** | `token.actions.githubusercontent.com` | Your tunnel domain |
+| **Issuer Domain** | `oidc.awanipro.com` | Your tunnel domain |
 | **JWKS Endpoint** | GitHub's endpoint | Your server |
 | **Key Rotation** | GitHub manages | You manage |
 
@@ -174,13 +174,13 @@ python3 aws_sts.py \
 
 When you run:
 ```bash
-python3 aws_sts.py --user-id "magic:mahesh" --issuer "https://mytunnel-abc123.trycloudflare.com"
+python3 aws_sts.py --user-id "magic:mahesh" --issuer "https://oidc.awanipro.com"
 ```
 
 JWT contains:
 ```json
 {
-  "iss": "https://mytunnel-abc123.trycloudflare.com",
+  "iss": "https://oidc.awanipro.com",
   "sub": "magic:mahesh",
   "aud": "sts.amazonaws.com",
   "iat": 1718873400,
@@ -189,7 +189,7 @@ JWT contains:
 ```
 
 AWS validates:
-1. ✓ Fetches public key from `https://mytunnel-abc123.trycloudflare.com/.well-known/jwks.json`
+1. ✓ Fetches public key from `https://oidc.awanipro.com/.well-known/jwks.json`
 2. ✓ Verifies JWT signature
 3. ✓ Checks `aud` == `sts.amazonaws.com`
 4. ✓ Checks `sub` matches trust policy: `magic:mahesh`
@@ -209,7 +209,7 @@ AWS validates:
 ### Error: "InvalidIdentityToken"
 - JWT signature verification failed
 - Check: Argo Tunnel is running
-- Verify: AWS can reach `https://mytunnel-abc123.trycloudflare.com/.well-known/jwks.json`
+- Verify: AWS can reach `https://oidc.awanipro.com/.well-known/jwks.json`
 
 ### Error: "Connection refused"
 - Server not running
@@ -231,7 +231,7 @@ aws s3 ls
 ```python
 from aws_sts import get_aws_credentials, set_aws_env_from_credentials
 
-creds = get_aws_credentials(issuer="https://mytunnel-abc123.trycloudflare.com")
+creds = get_aws_credentials(issuer="https://oidc.awanipro.com")
 set_aws_env_from_credentials(creds)
 
 # Now use boto3
@@ -246,5 +246,5 @@ s3.list_buckets()
   run: |
     python3 aws_sts.py \
       --user-id "magic:mahesh" \
-      --issuer "https://mytunnel-abc123.trycloudflare.com"
+      --issuer "https://oidc.awanipro.com"
 ```
