@@ -79,9 +79,12 @@ def assume_role_with_web_identity_oidc(
     """
     sts_client = boto3.client("sts", region_name=region)
 
+    # Sanitize session name (AWS allows only: alphanumeric, =, ., -, @, _)
+    safe_user_id = (user_id or 'default').replace(":", "-").replace("*", "x")[:32]
+
     response = sts_client.assume_role_with_web_identity(
         RoleArn=role_arn,
-        RoleSessionName=f"jwks-session-{user_id or 'default'}",
+        RoleSessionName=f"jwks-session-{safe_user_id}",
         WebIdentityToken=web_identity_token,
         DurationSeconds=duration_seconds
     )
