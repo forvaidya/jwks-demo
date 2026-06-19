@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -36,8 +36,12 @@ async def get_jwks():
     return JSONResponse(content=jwks_cache)
 
 @app.get("/.well-known/openid-configuration")
-async def openid_configuration():
-    issuer = os.getenv("ISSUER", "http://localhost:3000")
+async def openid_configuration(request: Request):
+    # Get issuer from request (works for localhost, tunnel, any domain)
+    scheme = request.url.scheme
+    host = request.headers.get("host", "localhost:3000")
+    issuer = f"{scheme}://{host}"
+
     return JSONResponse(content={
         "issuer": issuer,
         "authorization_endpoint": f"{issuer}/auth",
