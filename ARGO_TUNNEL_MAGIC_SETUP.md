@@ -121,6 +121,37 @@ aws iam create-role \
   --assume-role-policy-document file://trust-policy.json
 ```
 
+**Specific Users (Array Form - magic:mahesh, magic:john):**
+```bash
+cat > trust-policy.json << 'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::123456789012:oidc-provider/oidc.awanipro.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "oidc.awanipro.com:aud": "sts.amazonaws.com",
+          "oidc.awanipro.com:sub": [
+            "magic:mahesh",
+            "magic:john"
+          ]
+        }
+      }
+    }
+  ]
+}
+EOF
+
+aws iam create-role \
+  --role-name MyMagicRole \
+  --assume-role-policy-document file://trust-policy.json
+```
+
 ### 5. Test Credentials
 
 ```bash
