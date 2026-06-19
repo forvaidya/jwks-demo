@@ -1,13 +1,36 @@
 # JWKS Server with AWS STS Integration
 
-A FastAPI server that serves JSON Web Key Sets (JWKS) and integrates with AWS STS for passwordless credential acquisition via OIDC federation.
+A complete **OIDC Provider** built with FastAPI that enables passwordless AWS credential federation.
+
+## What You Can Do With This
+
+This is an **OpenID Connect (OIDC) authentication system** that lets you:
+
+- **Get AWS credentials without AWS SSO login** - Sign a JWT with your private key → AWS validates signature → Get temp credentials
+- **Authenticate apps/services with custom identities** - Use `magic:mahesh`, `magic:john`, or any custom `sub` claim
+- **Integrate any OIDC provider with AWS** - Works with this server or external providers (Auth0, Okta, GitHub Actions, etc.)
+- **Enable passwordless CI/CD pipelines** - Deploy from GitHub Actions, GitLab CI, or custom automation without stored credentials
+- **Implement cross-account federation** - External systems trust your OIDC provider and get temporary AWS roles
+
+## Key Capabilities
+
+| Capability | Description |
+|-----------|-------------|
+| **OIDC Provider** | Generates and serves JWKS with RS256-signed JWT tokens |
+| **AWS STS Integration** | Calls `AssumeRoleWithWebIdentity` with signed JWT to get temp credentials |
+| **Custom Sub Claims** | Support any identity pattern: `magic:mahesh`, `user@company.com`, `app-name`, etc. |
+| **Zero Credentials** | No passwords, no stored keys — only temporary signed tokens |
+| **IAM Trust Policies** | AWS validates JWT signature and enforces role access via sub claim |
+| **Argo Tunnel Ready** | Expose publicly at any domain (e.g., `https://oidc.awanipro.com`) |
 
 ## Features
 
-- **JWKS Generation**: Auto-generates RSA keypair on each server startup
-- **JWKS Endpoint**: Serves keys at `/.well-known/jwks.json` (RFC 7517 compliant)
-- **AWS STS Integration**: Passwordless credential retrieval using OIDC federation
-- **Environment-based Configuration**: Uses `MAHESH_AWS_ROLE` and `AWS_USER_ID` environment variables
+- **OIDC Provider**: Auto-generates RSA keypair on startup, serves JWKS and OpenID Configuration
+- **JWT Signing**: Creates RS256-signed tokens with custom `sub` claims
+- **AWS STS Integration**: Exchanges JWT for temporary AWS credentials
+- **No Passwords**: Entirely passwordless authentication via OIDC federation
+- **Environment-based Configuration**: Uses `MAHESH_AWS_ROLE`, `AWS_USER_ID`, `ISSUER` env vars
+- **Multi-Identity Support**: Allow multiple users/services via IAM trust policy conditions
 
 ## Project Structure
 
