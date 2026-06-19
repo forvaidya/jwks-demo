@@ -8,8 +8,9 @@ This is an **OpenID Connect (OIDC) authentication system** that lets you:
 
 - **Get AWS credentials without AWS SSO login** - Sign a JWT with your private key → AWS validates signature → Get temp credentials
 - **Authenticate apps/services with custom identities** - Use `magic:mahesh`, `magic:john`, or any custom `sub` claim
-- **Integrate any OIDC provider with AWS** - Works with this server or external providers (Auth0, Okta, GitHub Actions, etc.)
-- **Enable passwordless CI/CD pipelines** - Deploy from GitHub Actions, GitLab CI, or custom automation without stored credentials
+
+- **Enable passwordless to AWS ** - from your laptop
+
 - **Implement cross-account federation** - External systems trust your OIDC provider and get temporary AWS roles
 
 ## Key Capabilities
@@ -138,7 +139,7 @@ Server generates keypair on startup and saves private key to `./private_key.pem`
 # cat .env.example > .env
 
 # Edit .env with your values
-export AWS_ACCOUNT_ID="521170656618"
+export AWS_ACCOUNT_ID="52XXXXXXXX"
 export MAHESH_AWS_ROLE="opera-github-actions-role"
 export AWS_USER_ID="magic:mahesh"
 export ISSUER="http://localhost:3000"
@@ -177,8 +178,8 @@ aws sts get-caller-identity
 # Should output:
 # {
 #     "UserId": "AROAXSWBRDVVFVA4BXFVU:jwks-session-magic-mahesh",
-#     "Account": "521170656618",
-#     "Arn": "arn:aws:sts::521170656618:assumed-role/opera-github-actions-role/jwks-session-magic-mahesh"
+#     "Account": "52XXXXXXXX",
+#     "Arn": "arn:aws:sts::52XXXXXXXX:assumed-role/opera-github-actions-role/jwks-session-magic-mahesh"
 # }
 ```
 
