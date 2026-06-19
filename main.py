@@ -3,8 +3,12 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from jwks_generator import generate_jwks, save_private_key
+from dotenv import load_dotenv
 import json
 import os
+
+# Load .env (searches current dir and parents - works with symlinks)
+load_dotenv()
 
 jwks_cache = None
 
@@ -36,11 +40,9 @@ async def get_jwks():
     return JSONResponse(content=jwks_cache)
 
 @app.get("/.well-known/openid-configuration")
-async def openid_configuration(request: Request):
-    # Get issuer from request (works for localhost, tunnel, any domain)
-    scheme = request.url.scheme
-    host = request.headers.get("host", "localhost:3000")
-    issuer = f"{scheme}://{host}"
+async def openid_configuration():
+    # Get issuer from ISSUER env var (loaded from .env)
+    issuer = os.getenv("ISSUER", "https://oidc.awanipro.com")
 
     return JSONResponse(content={
         "issuer": issuer,
