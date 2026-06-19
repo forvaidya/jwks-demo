@@ -1,0 +1,36 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "GitHubOIDC",
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "arn:aws:iam::521170656618:oidc-provider/token.actions.githubusercontent.com"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                    "token.actions.githubusercontent.com:sub": "repo:forvaidya/super-simple:ref:refs/heads/main"
+                }
+            }
+        },
+        {
+            "Sid": "CustomOIDC",
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "arn:aws:iam::521170656618:oidc-provider/oidc.awanipro.com"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "oidc.awanipro.com:aud": "sts.amazonaws.com",
+                    "oidc.awanipro.com:sub": [
+                        "magic:mahesh",
+                        "magic:john"
+                    ]
+                }
+            }
+        }
+    ]
+}
