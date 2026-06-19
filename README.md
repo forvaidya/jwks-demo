@@ -42,45 +42,39 @@ source venv/bin/activate
 python3 main.py
 ```
 
-Server runs on `http://localhost:3000`
+Server runs on `http://localhost:3000` (or via Argo Tunnel at your configured domain)
 
 **Endpoints:**
-- `GET /.well-known/jwks.json` - Returns JWKS with RSA public key
+- `GET /.well-known/jwks.json` - Returns JWKS with RSA public key (RFC 7517 compliant)
+- `GET /.well-known/openid-configuration` - Returns OIDC metadata
 - `GET /health` - Health check
 
-**Example:**
+**Verify the server:**
 ```bash
 curl http://localhost:3000/.well-known/jwks.json | jq .
+curl http://localhost:3000/.well-known/openid-configuration | jq .
 ```
 
-### Generating JWKS
-
-Standalone JWKS generation:
-```bash
-source venv/bin/activate
-python3 jwks_generator.py
-```
-
-### AWS STS Integration
+### Getting AWS Credentials via OIDC
 
 **Prerequisites:**
 1. Start the FastAPI server: `python3 main.py` (generates and saves private key)
-2. Configure AWS OIDC provider (see "AWS IAM Setup" below)
+2. Set up AWS OIDC provider and IAM role (see "AWS IAM Setup" below)
+3. Configure environment variables
 
-Get AWS credentials using OIDC federation:
-
+**Step 1: Set environment variables**
 ```bash
-export MAHESH_AWS_ROLE="123456789012:role/MyRole"
-export AWS_USER_ID="user@example.com"
+export MAHESH_AWS_ROLE="123456789012:role/MyRole"  # or full ARN
+export AWS_USER_ID="magic:mahesh"                   # or any identifier
+export ISSUER="http://localhost:3000"               # or your Argo Tunnel URL
+export AWS_DEFAULT_REGION="ap-south-1"
+```
 
+**Step 2: Get credentials**
+```bash
 source venv/bin/activate
 python3 aws_sts.py
 ```
-
-**Environment Variables Required:**
-- `MAHESH_AWS_ROLE`: ARN in format `<account-id>:role/<role-name>`
-- `AWS_USER_ID`: User identifier for the OIDC token
-- `AWS_DEFAULT_REGION`: Defaults to `ap-south-1` if not set
 
 **Output:**
 ```json
@@ -92,11 +86,246 @@ python3 aws_sts.py
 }
 ```
 
-**How it works:**
-1. `aws_sts.py` loads the private key saved by the server (`./private_key.pem`)
-2. Creates a JWT token signed with the private key
-3. Calls AWS STS `AssumeRoleWithWebIdentity` with the JWT
-4. Returns temporary credentials
+**How it works (OIDC flow):**
+1. Server generates RS256-signed JWT with claims: `iss`, `sub`, `aud`, `iat`, `exp`
+2. Client loads private key from `./private_key.pem`
+3. Client signs JWT and sends to AWS STS `AssumeRoleWithWebIdentity`
+4. AWS fetches JWKS from `/.well-known/jwks.json` endpoint
+5. AWS verifies JWT signature against public key
+6. AWS checks `sub` claim against IAM role trust policy
+7. AWS returns temporary credentials (AccessKeyId, SecretAccessKey, SessionToken)
+
+## Testing & Integration Guide
+
+### Local Testing (Passwordless Authentication)
+
+This proves the system works **without AWS SSO login** — truly passwordless.
+
+**Step 1: Start the JWKS server**
+```bash
+source venv/bin/activate
+python3 main.py
+```
+
+Server generates keypair on startup and saves private key to `./private_key.pem`.
+
+**Step 2: Configure environment**
+```bash
+# Copy .env.example to .env first if needed
+# cat .env.example > .env
+
+# Edit .env with your values
+export AWS_ACCOUNT_ID="521170656618"
+export MAHESH_AWS_ROLE="opera-github-actions-role"
+export AWS_USER_ID="magic:mahesh"
+export ISSUER="http://localhost:3000"
+export AWS_DEFAULT_REGION="ap-south-1"
+```
+
+**Step 3: Test OIDC credential retrieval**
+```bash
+source venv/bin/activate
+
+# Log out of AWS SSO first (proves it's truly passwordless)
+aws sso logout
+
+# Get OIDC credentials
+python3 aws_sts.py
+```
+
+**Step 4: Export credentials for use**
+```bash
+# Export in shell format (single line per credential, no line breaks)
+source venv/bin/activate
+python3 get_creds_export.py
+
+# Output:
+# export AWS_ACCESS_KEY_ID=ASIA...
+# export AWS_SECRET_ACCESS_KEY=...
+# export AWS_SESSION_TOKEN=...
+# export AWS_DEFAULT_REGION=ap-south-1
+```
+
+**Step 5: Test AWS CLI operations**
+```bash
+# Copy the export lines and paste into your shell, then:
+aws sts get-caller-identity
+
+# Should output:
+# {
+#     "UserId": "AROAXSWBRDVVFVA4BXFVU:jwks-session-magic-mahesh",
+#     "Account": "521170656618",
+#     "Arn": "arn:aws:sts::521170656618:assumed-role/opera-github-actions-role/jwks-session-magic-mahesh"
+# }
+```
+
+**Step 6: Test S3 access**
+```bash
+# Using OIDC credentials:
+aws s3 ls
+
+# Should list all S3 buckets (if role has S3 permissions)
+```
+
+**Verification Checklist:**
+- ✅ Keypair regenerates on each server restart
+- ✅ JWT tokens are RS256-signed
+- ✅ AWS STS validates JWT against JWKS endpoint
+- ✅ Credentials work **without AWS SSO login**
+- ✅ Credentials are temporary (1 hour by default)
+- ✅ S3 operations succeed with OIDC credentials
+
+---
+
+### Generic OIDC Integration Guide
+
+This system can integrate with **any OIDC provider** that AWS trusts. Here's how to adapt it:
+
+#### 1. Understand the Key Concepts
+
+| Concept | Meaning | Example |
+|---------|---------|---------|
+| **Issuer** | The OIDC provider URL | `http://localhost:3000` or `https://oidc.awanipro.com` |
+| **Audience** | Who the token is for | `sts.amazonaws.com` (always this for AWS) |
+| **Subject (sub)** | The user/identity claim | `magic:mahesh` or `user@company.com` |
+| **JWKS URI** | Public keys endpoint | `{issuer}/.well-known/jwks.json` |
+| **OpenID Config** | OIDC metadata | `{issuer}/.well-known/openid-configuration` |
+
+#### 2. Customize for Your OIDC Provider
+
+**Option A: Using This Code (FastAPI-based)**
+
+If you're building your own OIDC provider using this code:
+
+```python
+# In main.py, set your issuer
+export ISSUER="https://your-domain.com"
+
+# In aws_sts.py, customize the sub claim
+# Default uses AWS_USER_ID env var, modify as needed
+```
+
+**Option B: Pointing to External OIDC Provider**
+
+If using an existing OIDC provider (e.g., Auth0, Okta, GitHub Actions):
+
+```python
+# In aws_sts.py, change the issuer and get token from provider
+issuer = "https://external-provider.com"  # Not localhost:3000
+web_identity_token = get_token_from_external_provider()  # Custom logic
+```
+
+#### 3. AWS IAM Role Configuration for Any OIDC
+
+**For your custom OIDC provider:**
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::ACCOUNT_ID:oidc-provider/your-issuer.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "your-issuer.com:aud": "sts.amazonaws.com",
+          "your-issuer.com:sub": "your-subject-claim"
+        }
+      }
+    }
+  ]
+}
+```
+
+Replace:
+- `ACCOUNT_ID` → Your AWS account ID
+- `your-issuer.com` → Your OIDC issuer domain
+- `your-subject-claim` → Expected value of the `sub` claim in JWT
+
+**Examples:**
+
+For GitHub Actions OIDC:
+```json
+"Federated": "arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com",
+"Condition": {
+  "StringEquals": {
+    "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+  },
+  "StringLike": {
+    "token.actions.githubusercontent.com:sub": "repo:owner/repo:ref:refs/heads/main"
+  }
+}
+```
+
+For Google Cloud (external account federation):
+```json
+"Federated": "arn:aws:iam::ACCOUNT_ID:oidc-provider/accounts.google.com",
+"Condition": {
+  "StringEquals": {
+    "accounts.google.com:aud": "sts.amazonaws.com"
+  }
+}
+```
+
+#### 4. Test Your Integration
+
+```bash
+# 1. Start your OIDC provider
+python3 main.py  # or run your external provider
+
+# 2. Verify JWKS endpoint
+curl https://your-issuer.com/.well-known/jwks.json | jq .
+
+# 3. Get token from your provider
+TOKEN=$(your-method-to-get-jwt)
+
+# 4. Test AWS STS
+aws sts assume-role-with-web-identity \
+  --role-arn arn:aws:iam::ACCOUNT_ID:role/RoleName \
+  --role-session-name test-session \
+  --web-identity-token $TOKEN
+
+# 5. Use credentials
+export AWS_ACCESS_KEY_ID=...
+export AWS_SECRET_ACCESS_KEY=...
+export AWS_SESSION_TOKEN=...
+aws sts get-caller-identity
+```
+
+#### 5. Common OIDC Patterns
+
+**Pattern 1: User-based (Email/Username)**
+```
+sub: "user@company.com"
+# Trust anyone from your domain
+"StringLike": { "issuer:sub": "*@company.com" }
+```
+
+**Pattern 2: Service-based (App ID)**
+```
+sub: "app-name"
+# Trust specific applications
+"StringEquals": { "issuer:sub": "app-name" }
+```
+
+**Pattern 3: Repository-based (CI/CD)**
+```
+sub: "repo:owner/name:environment:prod"
+# Trust specific repos or environments
+"StringLike": { "issuer:sub": "repo:myorg/*:environment:*" }
+```
+
+**Pattern 4: Magic Prefix (Custom)**
+```
+sub: "magic:mahesh" or "magic:john"
+# Trust multiple users via wildcard
+"StringLike": { "issuer:sub": "magic:*" }
+```
+
+---
 
 ## Architecture
 
