@@ -97,31 +97,37 @@ def assume_role_with_web_identity_oidc(
 
 
 def get_aws_credentials(
-    region: str = "ap-south-1",
+    region: str = None,
     private_key_path: str = None,
-    issuer: str = "http://localhost:8000"
+    issuer: str = None
 ) -> dict:
     """
     Get AWS credentials using OIDC federation with JWKS.
 
     Constructs role ARN from environment variables:
-    - MAHESH_AWS_ROLE: Role name
+    - AWS_ACCOUNT_ID: AWS account ID
+    - MAHESH_AWS_ROLE: Role name (or full ARN)
     - AWS_USER_ID: User identifier
 
     Args:
-        region: AWS region
+        region: AWS region (default: from AWS_DEFAULT_REGION env var)
         private_key_path: Path to private key file (default: ./private_key.pem)
-        issuer: OIDC issuer URL pointing to the JWKS endpoint
+        issuer: OIDC issuer URL (default: from ISSUER env var)
 
     Returns:
         Dictionary with AWS credentials
     """
+    # Get from env vars with defaults
+    region = region or os.getenv("AWS_DEFAULT_REGION", "ap-south-1")
+    issuer = issuer or os.getenv("ISSUER", "http://localhost:3000")
+
+    aws_account_id = os.getenv("AWS_ACCOUNT_ID")
     mahesh_aws_role = os.getenv("MAHESH_AWS_ROLE")
     aws_user_id = os.getenv("AWS_USER_ID")
 
-    if not mahesh_aws_role or not aws_user_id:
+    if not aws_account_id or not mahesh_aws_role or not aws_user_id:
         raise ValueError(
-            "Environment variables MAHESH_AWS_ROLE and AWS_USER_ID must be set"
+            "Environment variables required: AWS_ACCOUNT_ID, MAHESH_AWS_ROLE, AWS_USER_ID"
         )
 
     if private_key_path is None:
@@ -129,15 +135,15 @@ def get_aws_credentials(
 
     private_key_pem = load_private_key_from_file(private_key_path)
 
-    if not mahesh_aws_role.startswith("arn:aws:iam::"):
-        role_arn = f"arn:aws:iam::{mahesh_aws_role}"
-    else:
+    # Construct role ARN
+    if mahesh_aws_role.startswith("arn:aws:iam::"):
         role_arn = mahesh_aws_role
+    else:
+        role_arn = f"arn:aws:iam::{aws_account_id}:role/{mahesh_aws_role}"
 
     if not role_arn.startswith("arn:aws:iam::"):
         raise ValueError(
-            "MAHESH_AWS_ROLE should be in format: account-id:role/role-name "
-            "or full ARN: arn:aws:iam::account-id:role/role-name"
+            "Failed to construct valid role ARN"
         )
 
     web_identity_token = create_oidc_jwt(
