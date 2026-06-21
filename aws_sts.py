@@ -143,11 +143,11 @@ def get_aws_credentials(
 
     aws_account_id = os.getenv("AWS_ACCOUNT_ID")
     mahesh_aws_role = os.getenv("MAHESH_AWS_ROLE")
-    aws_user_id = os.getenv("AWS_USER_ID")
+    aws_user_id = os.getenv("AWS_USER_ID", "magic:mahesh")  # Default to magic:mahesh
 
-    if not aws_account_id or not mahesh_aws_role or not aws_user_id:
+    if not aws_account_id or not mahesh_aws_role:
         raise ValueError(
-            "Environment variables required: AWS_ACCOUNT_ID, MAHESH_AWS_ROLE, AWS_USER_ID"
+            "Environment variables required: AWS_ACCOUNT_ID, MAHESH_AWS_ROLE"
         )
 
     if private_key_path is None:

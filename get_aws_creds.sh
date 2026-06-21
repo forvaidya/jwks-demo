@@ -3,13 +3,14 @@
 #
 # USAGE:
 #   source <(bash get_aws_creds.sh | grep export)
+#   source <(bash get_aws_creds.sh [SUBJECT] | grep export)
 #
-# Or with grep to filter exports only:
-#   source <(bash get_aws_creds.sh | grep "^export ")
-#
-# Then verify credentials:
-#   aws sts get-caller-identity
-#   aws s3 ls
+# ARGUMENTS:
+#   $1 (optional): Custom subject/user ID (defaults to magic:mahesh from .env)
+#     Examples:
+#       bash get_aws_creds.sh john
+#       bash get_aws_creds.sh user@example.com
+#       bash get_aws_creds.sh (uses AWS_USER_ID from .env)
 #
 # WHAT IT DOES:
 #   1. Restarts FastAPI server (reuses existing keypair for stable thumbprint)
@@ -22,7 +23,7 @@
 #   Load from .env or set manually:
 #   - AWS_ACCOUNT_ID: Your AWS account ID
 #   - MAHESH_AWS_ROLE: IAM role name or ARN
-#   - AWS_USER_ID: Subject claim for JWT (e.g., magic:mahesh)
+#   - AWS_USER_ID: Default subject claim for JWT (e.g., magic:mahesh)
 #   - ISSUER: OIDC issuer URL (e.g., https://oidc.awanipro.com)
 
 # Kill any existing FastAPI server process and restart
@@ -64,6 +65,9 @@ export AWS_USER_ID="${AWS_USER_ID:-magic:mahesh}"
 export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-521170656618}"
 ISSUER="${ISSUER:-https://oidc.awanipro.com}"
 
+# Get subject from argument or environment (default: magic:mahesh)
+SUBJECT="${1:-${AWS_USER_ID:-magic:mahesh}}"
+
 # Run Python script and capture output + save expiration to file
 CREDS_SCRIPT="$(python3 -c "
 import os
@@ -72,6 +76,9 @@ import json
 from aws_sts import get_aws_credentials, set_aws_env_from_credentials
 
 try:
+    # Override AWS_USER_ID if argument provided
+    os.environ['AWS_USER_ID'] = '$SUBJECT'
+
     # Get credentials
     creds = get_aws_credentials(issuer='$ISSUER')
 
