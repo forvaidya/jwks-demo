@@ -48,7 +48,7 @@ def create_oidc_jwt(
     import base64
 
     now_ts = int(time.time())
-    exp_ts = now_ts + 3600  # 1 hour
+    exp_ts = now_ts + 900  # 15 minutes (AWS minimum)
 
     payload = {
         "iss": issuer,
@@ -77,7 +77,7 @@ def create_oidc_jwt(
 def assume_role_with_web_identity_oidc(
     role_arn: str,
     web_identity_token: str,
-    duration_seconds: int = 3600,
+    duration_seconds: int = 900,
     region: str = "ap-south-1",
     user_id: str = None
 ) -> dict:
