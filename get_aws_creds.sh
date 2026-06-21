@@ -64,7 +64,7 @@ export AWS_USER_ID="${AWS_USER_ID:-magic:mahesh}"
 export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-521170656618}"
 ISSUER="${ISSUER:-https://oidc.awanipro.com}"
 
-# Run Python script and capture output
+# Run Python script and capture output + save expiration to file
 CREDS_SCRIPT="$(python3 -c "
 import os
 import sys
@@ -75,16 +75,39 @@ try:
     # Get credentials
     creds = get_aws_credentials(issuer='$ISSUER')
 
+    # Save expiration to file for later checking
+    with open('.aws_token_expiration.txt', 'w') as f:
+        f.write(creds['Expiration'])
+
     # Output as shell commands
     print(f'export AWS_ACCESS_KEY_ID=\"{creds[\"AccessKeyId\"]}\"')
     print(f'export AWS_SECRET_ACCESS_KEY=\"{creds[\"SecretAccessKey\"]}\"')
     print(f'export AWS_SESSION_TOKEN=\"{creds[\"SessionToken\"]}\"')
     print(f'export AWS_DEFAULT_REGION=\"ap-south-1\"')
-    print(f'echo \"✅ AWS credentials set (expires: {creds[\"Expiration\"]})\"')
+    print(f'export TOKEN_EXPIRATION=\"{creds[\"Expiration\"]}\"')
+    print(f'echo \"✅ Fresh Token Generated\"')
+    print(f'echo \"   Expires (UTC): {creds[\"Expiration\"]}\"')
 except Exception as e:
     print(f'echo \"❌ Error: {e}\"', file=sys.stderr)
     sys.exit(1)
 ")"
 
 # Output only the exports (everything else goes to stderr)
-echo "$CREDS_SCRIPT" | grep export
+echo "$CREDS_SCRIPT" | grep export > aws-temp-creds.rc
+echo "$CREDS_SCRIPT" | grep echo
+
+# Parse and display expiration date
+EXPIRATION=$(grep TOKEN_EXPIRATION aws-temp-creds.rc | cut -d'"' -f2)
+READABLE_DATE=$(date -d "$EXPIRATION" '+%A, %B %d at %I:%M %p' 2>/dev/null || echo "$EXPIRATION")
+
+cat << EOF
+
+✅ Token Expiration: $READABLE_DATE
+
+To load credentials:
+  source aws-temp-creds.rc
+
+Verify with STS:
+  aws sts get-caller-identity
+
+EOF

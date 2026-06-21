@@ -74,3 +74,5 @@ Thumbs.db
 *.pem
 *.key
 *.crt
+aws-temp-creds.rc
+.aws_token_expiration.txt
