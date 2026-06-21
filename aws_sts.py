@@ -28,7 +28,8 @@ def create_oidc_jwt(
     private_key_pem: str,
     user_id: str,
     issuer: str = "http://localhost:3000",
-    kid: str = "default"
+    kid: str = "default",
+    print_jwt: bool = False
 ) -> str:
     """
     Create a JWT token signed with the private key for OIDC authentication.
@@ -38,11 +39,13 @@ def create_oidc_jwt(
         user_id: User identifier (from AWS_USER_ID env var)
         issuer: OIDC issuer URL (the JWKS endpoint)
         kid: Key ID matching the one in JWKS
+        print_jwt: If True, print JWT header and payload
 
     Returns:
         Signed JWT token
     """
     import time
+    import base64
 
     now_ts = int(time.time())
     exp_ts = now_ts + 3600  # 1 hour
@@ -56,6 +59,18 @@ def create_oidc_jwt(
     }
 
     token = jwt.encode(payload, private_key_pem, algorithm="RS256", headers={"kid": kid})
+
+    if print_jwt:
+        print("\n🔐 JWT Token Created:", file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
+        print(f"Full Token: {token}", file=sys.stderr)
+        print("\n📋 Header:", file=sys.stderr)
+        header = json.loads(base64.urlsafe_b64decode(token.split('.')[0] + '=='))
+        print(json.dumps(header, indent=2), file=sys.stderr)
+        print("\n📋 Payload (Claims):", file=sys.stderr)
+        print(json.dumps(payload, indent=2), file=sys.stderr)
+        print("=" * 80 + "\n", file=sys.stderr)
+
     return token
 
 
@@ -154,7 +169,8 @@ def get_aws_credentials(
     web_identity_token = create_oidc_jwt(
         private_key_pem,
         aws_user_id,
-        issuer=issuer
+        issuer=issuer,
+        print_jwt=True  # Print JWT for debugging
     )
 
     credentials = assume_role_with_web_identity_oidc(
