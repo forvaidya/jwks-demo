@@ -2,7 +2,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from jwks_generator import generate_jwks, save_private_key
+from jwks_generator import generate_jwks, save_private_key, jwk_from_rsa_public_key, private_key_to_pem
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.backends import default_backend
 from dotenv import load_dotenv
 import json
 import os
@@ -15,12 +17,29 @@ jwks_cache = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global jwks_cache
-    jwks_cache, private_key_pem = generate_jwks()
-
-    # Save private key for AWS STS script to use
     private_key_path = os.path.join(os.path.dirname(__file__), "private_key.pem")
-    save_private_key(private_key_pem, private_key_path)
-    print(f"✅ Keypair generated and private key saved to {private_key_path}")
+
+    # Check if private key already exists
+    if os.path.exists(private_key_path):
+        print(f"📂 Loading existing private key from {private_key_path}")
+        with open(private_key_path, 'r') as f:
+            private_key_pem = f.read()
+
+        # Load the private key object to generate JWKS
+        private_key = serialization.load_pem_private_key(
+            private_key_pem.encode(),
+            password=None,
+            backend=default_backend()
+        )
+        public_key = private_key.public_key()
+        jwk = jwk_from_rsa_public_key(public_key, "default")
+        jwks_cache = {"keys": [jwk]}
+        print(f"✅ Using existing keypair (thumbprint stable)")
+    else:
+        print(f"🔄 Generating new keypair...")
+        jwks_cache, private_key_pem = generate_jwks()
+        save_private_key(private_key_pem, private_key_path)
+        print(f"✅ Keypair generated and private key saved to {private_key_path}")
 
     yield
 

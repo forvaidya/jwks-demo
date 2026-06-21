@@ -1,12 +1,71 @@
 #!/bin/bash
-# get_aws_creds.sh - Get AWS credentials and set environment variables
+# get_aws_creds.sh - Get AWS credentials via OIDC federation
+#
+# USAGE:
+#   source <(bash get_aws_creds.sh | grep export)
+#
+# Or with grep to filter exports only:
+#   source <(bash get_aws_creds.sh | grep "^export ")
+#
+# Then verify credentials:
+#   aws sts get-caller-identity
+#   aws s3 ls
+#
+# WHAT IT DOES:
+#   1. Restarts FastAPI server (reuses existing keypair for stable thumbprint)
+#   2. Loads private key from file
+#   3. Creates JWT signed with private key
+#   4. Calls AWS STS AssumeRoleWithWebIdentity
+#   5. Outputs export statements for AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, etc.
+#
+# ENVIRONMENT:
+#   Load from .env or set manually:
+#   - AWS_ACCOUNT_ID: Your AWS account ID
+#   - MAHESH_AWS_ROLE: IAM role name or ARN
+#   - AWS_USER_ID: Subject claim for JWT (e.g., magic:mahesh)
+#   - ISSUER: OIDC issuer URL (e.g., https://oidc.awanipro.com)
 
-export MAHESH_AWS_ROLE="${MAHESH_AWS_ROLE:-123456789012:role/MyRole}"
+# Kill any existing FastAPI server process and restart
+echo "🔄 Restarting FastAPI server..." >&2
+# Kill by port to be more reliable
+lsof -ti:3000 | xargs -r kill -9 2>/dev/null
+sleep 1
+# NOTE: NOT deleting private_key.pem - we keep the same keypair for stable thumbprint
+
+# Start fresh FastAPI server
+sleep 1
+python main.py > /tmp/jwks_server.log 2>&1 &
+SERVER_PID=$!
+
+# Wait for server to be ready and private key generated (max 10 seconds)
+for i in {1..20}; do
+  if curl -s http://localhost:3000/health >/dev/null 2>&1 && [ -f private_key.pem ]; then
+    echo "✅ FastAPI server ready (PID: $SERVER_PID)" >&2
+    break
+  fi
+  if [ $i -eq 20 ]; then
+    echo "❌ Error: FastAPI server failed to start or generate keys" >&2
+    cat /tmp/jwks_server.log >&2
+    exit 1
+  fi
+  sleep 0.5
+done
+
+# Load from .env file if present
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+fi
+
+# Use env vars or defaults
+export MAHESH_AWS_ROLE="${MAHESH_AWS_ROLE:-opera-github-actions-role}"
 export AWS_USER_ID="${AWS_USER_ID:-magic:mahesh}"
-ISSUER="${ISSUER:-https://mytunnel-abc123.trycloudflare.com}"
+export AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-521170656618}"
+ISSUER="${ISSUER:-https://oidc.awanipro.com}"
 
 # Run Python script and capture output
-eval "$(python3 -c "
+CREDS_SCRIPT="$(python3 -c "
 import os
 import sys
 import json
@@ -26,3 +85,6 @@ except Exception as e:
     print(f'echo \"❌ Error: {e}\"', file=sys.stderr)
     sys.exit(1)
 ")"
+
+# Output only the exports (everything else goes to stderr)
+echo "$CREDS_SCRIPT" | grep export
